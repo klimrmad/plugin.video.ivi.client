@@ -1,2 +1,3 @@
 ignore:
   - "tests.py"
+  - "plugin.video.ivi.client/resources/lib/blowfish.py"

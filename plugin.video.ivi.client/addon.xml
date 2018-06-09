@@ -3,7 +3,7 @@
     <requires>
         <import addon="xbmc.python" version="2.19.0"/>
         <import addon="script.module.requests"/>
-        <import addon="script.module.simplemedia"/>
+        <import addon="script.module.simplemedia" version="1.0.3"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="default.py">
         <provides>video</provides>
@@ -12,9 +12,9 @@
         <summary lang="en_GB"></summary>
         <summary lang="ru_RU">Онлайн-кинотеатр ivi</summary>
         <description lang="en_GB"></description>
-        <description lang="ru_RU">Мы — крупнейший в России онлайн-кинотеатр, работающий на рынке легального профессионального видеоконтента. Наша миссия — открывать для людей мир кино во всём его многообразии</description>
+        <description lang="ru_RU">Смотрите ваши любимые фильмы и сериалы на большом экране вашего ТВ.[CR]Доступ к огромному каталогу фильмов и сериалов для бесплатного просмотра в один клик.[CR]Смотрите в HD качестве на большом экране вашего телевизора.</description>
         <disclaimer lang="en_GB"></disclaimer>
-        <disclaimer lang="ru_RU"></disclaimer>
+        <disclaimer lang="ru_RU">Самая большая в России легальная фильмотек</disclaimer>
         <language>ru</language>
         <platform>all</platform>
         <license>GNU GENERAL PUBLIC LICENSE. Version 3, 29 June 2007</license>
@@ -22,7 +22,7 @@
         <website>https://www.ivi.ru/</website>
         <email>vl.maksime@gmail.com</email>
         <source>https://github.com/vlmaksime/plugin.video.ivi.client</source>
-        <news>v1.0.0 (2018-06-06)[CR]- Публичный релиз</news>
+        <news>v1.0.0 (2018-06-09)[CR]- Публичный релиз</news>
         <assets>
             <icon>icon.png</icon>
         </assets>

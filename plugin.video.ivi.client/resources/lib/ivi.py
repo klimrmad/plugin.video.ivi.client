@@ -2,14 +2,14 @@
 # License: GPL v.3 https://www.gnu.org/copyleft/gpl.html
 
 from __future__ import unicode_literals
-from future.utils import python_2_unicode_compatible, iteritems
-from blowfish import Blowfish
-import requests
-import os
-import time
-import hashlib
+
 import json
 import random
+
+from future.utils import python_2_unicode_compatible, iteritems
+import requests
+
+from blowfish import Blowfish
 
 
 @python_2_unicode_compatible
@@ -35,7 +35,7 @@ class IVI(object):
         self._key = ''
         self._key1 = ''
         self._key2 = ''
-        
+
         self._headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0',
                          'Accept-Encoding': 'gzip, deflate, br',
                          'DNT': '1',
@@ -74,7 +74,7 @@ class IVI(object):
         try:
             r = requests.head(url, headers=self._headers)
             r.raise_for_status()
-            
+
         except requests.ConnectionError:
             raise self.APIException('Connection error')
         except requests.HTTPError as e:
@@ -88,37 +88,37 @@ class IVI(object):
                       }
 
         return result
-        
+
     def _get_sign(self, text):
         cipher = Blowfish(self._key)
         cipher.initCBC()
-    
+
         data = bytes(text)
-        
+
         offset = 0
         data_len = len(data)
         while (offset + 8 < data_len):
             cipher.encryptCBC(data[offset : offset + 8])
             offset += 8
-        
+
         buffer = b''
         if (offset != data_len):
             buffer = data[offset : ]
-    
+
         sub_key = self._key1
         if (len(buffer) < 8):
             buffer += b'\x80';
             while (len(buffer) < 8):
                 buffer += b'\x00'
             sub_key = self._key2
-        
+
         new_buffer = b''
         for i in range(8):
             new_buffer += chr(ord(buffer[i]) ^ ord(sub_key[i]))
-    
+
         sign = cipher.encryptCBC(new_buffer)
         return sign.encode('hex')
-     
+
     def _http_request(self, url_path, params=None, rtype='GET', **kwqrgs):
         params = params or {}
         params['app_version'] = self._app_version
@@ -129,7 +129,7 @@ class IVI(object):
                 r = requests.get(url, params, headers=self._headers, **kwqrgs)
             elif rtype == 'POST':
                 r = requests.get(url, params, headers=self._headers, **kwqrgs)
-            #print(r.url)
+            # print(r.url)
             r.raise_for_status()
         except requests.ConnectionError:
             raise self.APIException('Connection error')
@@ -159,7 +159,7 @@ class IVI(object):
         r = self._http_request(url, u_params)
         j = self._extract_json(r)
         result = j['result']
-        
+
         return {'last_version_id': result['last_version_id'],
                 'application_id': result['application_id'],
                 'description': result['description'],
@@ -170,7 +170,7 @@ class IVI(object):
 
     def geocheck(self):
         url = 'mobileapi/geocheck/whoami/v6/'
-        
+
         u_params = {}
         if self._user_ab_bucket:
             u_params['user_ab_bucket'] = self._user_ab_bucket
@@ -178,7 +178,7 @@ class IVI(object):
         r = self._http_request(url, u_params)
         j = self._extract_json(r)
         result = j['result']
-        
+
         return {'country_code': result['country_code'],
                 'country_name': result['country_name'],
                 'timestamp': result['timestamp'],
@@ -199,7 +199,7 @@ class IVI(object):
                 genres[genre['hru']] = {'title': genre['title'],
                                         'id': int(genre['id']),
                                         }
-            
+
             yield {'id': category['id'],
                    'title': category['title'],
                    'hru': category['hru'],
@@ -213,8 +213,8 @@ class IVI(object):
         r = self._http_request(url)
         j = self._extract_json(r)
 
-        for id, localizations in iteritems(j['result']):
-            yield {'id': id,
+        for _id, localization in iteritems(j['result']):
+            yield {'id': _id,
                    'title': localization,
                    }
 
@@ -224,19 +224,8 @@ class IVI(object):
         r = self._http_request(url)
         j = self._extract_json(r)
 
-        for id, country in iteritems(j['result']):
-            yield {'id': id,
-                   'title': country,
-                   }
-
-    def genres(self):
-        url = 'mobileapi/genres/v5/'
-
-        r = self._http_request(url)
-        j = self._extract_json(r)
-
-        for id, country in iteritems(j['result']):
-            yield {'id': id,
+        for _id, country in iteritems(j['result']):
+            yield {'id': _id,
                    'title': country,
                    }
 
@@ -268,12 +257,12 @@ class IVI(object):
                   'step': step,
                   'list': self._catalogue_list(j['result']),
                   }
-        
+
         return result
 
     @staticmethod
     def _make_item(item):
-        
+
         result = {'restrict': item['restrict'],
                  'artists': item['artists'],
                  'id': item['id'],
@@ -300,7 +289,7 @@ class IVI(object):
         if item.get('promo_images') is not None \
           and item['promo_images']:
             result['promo'] = item['promo_images'][0]['url']
-                 
+
         if item['object_type'] == 'video':
             result.update({'year': item.get('year'),
                            'duration_minutes': item['duration_minutes'],
@@ -312,7 +301,7 @@ class IVI(object):
                                })
             if item.get('season'):
                 result['season'] = item['season']
-                               
+
         elif item['object_type'] == 'compilation':
             result.update({'year': item['years'][0] if item['years'] else None,
                            'total_contents': item['total_contents'],
@@ -329,7 +318,7 @@ class IVI(object):
     def _catalogue_list(cls, items):
         for item in items:
             yield cls._make_item(item)
-            
+
     def compilationinfo(self, compilation_id):
         url = 'mobileapi/compilationinfo/v5/'
 
@@ -341,7 +330,7 @@ class IVI(object):
                   'branding.files.content_format-url', 'branding.link-px_audit', 'ivi_release_info.date_interval_max-date_interval_min',
                   'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'total_contents', 'seasons_count',
                   'seasons_description', 'categories']
-    
+
         u_params = {'id': compilation_id,
                     'fields': ','.join(fields)}
         r = self._http_request(url, u_params)
@@ -357,7 +346,7 @@ class IVI(object):
                   'ivi_release_date', 'kind', 'kp_rating', 'poster_originals.path', 'restrict', 'season', 'synopsis',
                   'thumb_originals.path', 'title', 'year', 'additional_data.additional_data_id-data_type-duration-preview-title',
                   'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'release_date']
-    
+
         start = 0
         step = 100
 
@@ -377,7 +366,7 @@ class IVI(object):
             if len(j['result']) == step:
                 u_params['from'] += step
                 u_params['to'] += step
-                
+
             else:
                 break
 
@@ -385,7 +374,7 @@ class IVI(object):
                   'list': self._catalogue_list(items),
                   }
         return result
- 
+
     def videoinfo(self, video_id):
         url = 'mobileapi/videoinfo/v5/'
 
@@ -394,15 +383,15 @@ class IVI(object):
                   'ivi_release_date', 'kind', 'kp_rating', 'poster_originals.path', 'restrict', 'season', 'synopsis',
                   'thumb_originals.path', 'title', 'year', 'additional_data.additional_data_id-data_type-duration-preview-title',
                   'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'release_date']
-    
+
         u_params = {'id': video_id,
                     'fields': ','.join(fields)}
-        
+
         r = self._http_request(url, u_params)
         j = self._extract_json(r)
 
         return self._make_item(j['result'])
-        
+
     def videolinks(self, video_id):
         url = 'light/'
 
@@ -412,7 +401,7 @@ class IVI(object):
 
         r = self._http_request(url, json=u_json, rtype='POST')
         j = self._extract_json(r)
-        
+
         u_json = {'method':'da.content.get',
                   'params':[video_id,
                             {'app_version': self._app_version,
@@ -429,14 +418,14 @@ class IVI(object):
         u_params = {'ts': j['result'],
                     'sign': self._get_sign(j['result'] + data),
                     }
-        
+
         r = self._http_request(url, u_params, data=data, rtype='POST')
         j = self._extract_json(r)
 
         result = {}
         for _file in j['result']['files']:
             result[_file['content_format']] = _file['url']
-        
+
         return result
 
     def search(self, keyword):
@@ -457,19 +446,12 @@ class IVI(object):
         for item in j:
             if item['object_type'] in ['video', 'compilation']:
                 items.append(item)
-                
+
         result = {'count': len(items),
                   'list': self._catalogue_list(items),
                   }
-        
+
         return result
-
-    def video(self, video_id):
-        url = 'mobileapi/videoinfo/v5/'
-        u_params = {'id': video_id,
-                    }
-
-        r = self._http_request(url, u_params)
 
     @staticmethod
     def get_age_restricted_rating(min_age, rating_type):

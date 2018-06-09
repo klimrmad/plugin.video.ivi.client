@@ -2,22 +2,20 @@
 # License: GPL v.3 https://www.gnu.org/copyleft/gpl.html
 
 from __future__ import unicode_literals
+
 from future.utils import iteritems
-
-import os
-
+from simplemedia import py2_decode
+import simplemedia
 import xbmc
-import xbmcgui
 import xbmcplugin
 
 from resources.lib.ivi import IVI
 
-import simplemedia
-from simplemedia import py2_decode
 
 plugin = simplemedia.RoutedPlugin()
 _ = plugin.initialize_gettext()
 
+api = None
 
 @plugin.route('/')
 def root():
@@ -35,7 +33,7 @@ def _list_root():
     except api.APIException as e:
         plugin.notify_error(e.msg)
         categories = {}
-        
+
     for key, _category in iteritems(categories):
         if _category['id'] in [18]:
             continue
@@ -77,14 +75,14 @@ def category(category_hru):
     start = int(start)
     params = {'from': start,
               }
-    
+
     try:
         category_info = api.catalogue(_category['id'], step, **params)
         params = {'items': _list_category(category_info, category_hru),
                   'total_items': category_info['count'],
                   'content': 'movies',
                   'category': _category['title'],
-                  'sort_methods': xbmcplugin.SORT_METHOD_NONE,
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_NONE, 'label2Mask': '%Y / %O'},
                   'update_listing': (start > 0),
 
                   }
@@ -100,7 +98,7 @@ def category(category_hru):
 def _list_category(data, category_hru=''):
 
     use_pages = (category_hru != '')
-    
+
     for item in data['list']:
         listitem = _get_listitem(item)
         yield listitem
@@ -134,12 +132,12 @@ def compilation(compilation_id):
 
     try:
         compilation_info = api.compilationinfo(compilation_id)
-    
+
         params = {'items': _list_seasons(compilation_info),
                   'total_items': compilation_info['seasons_count'],
                   'content': 'seasons',
                   'category': compilation_info['title'],
-                  'sort_methods': xbmcplugin.SORT_METHOD_LABEL_IGNORE_FOLDERS,
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_LABEL_IGNORE_FOLDERS, 'label2Mask': '%Y / %O'},
                   }
     except api.APIException as e:
         plugin.notify_error(e.msg)
@@ -157,10 +155,10 @@ def _list_seasons(data):
     del item['seasons_content_total']
     del item['seasons_count']
     del item['seasons_description']
-    
+
     for season in data['seasons']:
         item['object_type'] = 'season'
-        
+
         season_str = str(season)
         season_description = data['seasons_description'].get(season_str)
         season_content_total = data['seasons_content_total'].get(season_str, 0)
@@ -179,7 +177,7 @@ def _list_seasons(data):
 def compilation_season(compilation_id, season=None):
     try:
         season_info = api.videofromcompilation(compilation_id, season)
-    
+
         params = {'items': _list_episodes(season_info),
                   'total_items': season_info['count'],
                   'content': 'episodes',
@@ -192,12 +190,12 @@ def compilation_season(compilation_id, season=None):
         params = {'items': [],
                   'succeeded': False,
                   }
- 
+
     plugin.create_directory(**params)
 
 
 def _list_episodes(data):
-    
+
     for item in data['list']:
         listitem = _get_listitem(item)
         yield listitem
@@ -206,10 +204,9 @@ def _list_episodes(data):
 def _get_listitem(item):
     properties = {}
     video_info_upd = {}
-    tvshowtitle = ''
     orig_title = ''
     countries = _countries()
-    
+
     country = []
     if isinstance(item['country'], list):
         for _country in item['country']:
@@ -222,15 +219,15 @@ def _get_listitem(item):
         genre_title = _get_genre(item['categories'][0], _genre)
         if genre_title:
             genre.append(genre_title)
-    
+
     ratings = _get_ratings(item)
-    
+
     rating = 0
     for _rating in ratings:
         if _rating['defaultt']:
             rating = _rating['rating']
             break
-    
+
     if item['object_type'] == 'video':
         url = plugin.url_for('play_video', video_id=item['id'])
         is_folder = False
@@ -239,13 +236,13 @@ def _get_listitem(item):
             title = item['title']
             orig_title = item['orig_title']
             mediatype = 'movie'
-        
+
             video_info_upd = {'duration': item['duration_minutes'] * 60,
                               }
         else:
             title = item['title']
             mediatype = 'episode'
-            
+
             season = max(item.get('season', 0), 1)
             video_info_upd = {'duration': item['duration_minutes'] * 60,
                               'tvshowtitle': item['compilation_title'],
@@ -254,7 +251,7 @@ def _get_listitem(item):
                               'sortepisode': item['episode'],
                               'sortseason': season,
                               }
-    
+
     elif item['object_type'] == 'compilation':
         if item['seasons_count'] == 0:
             url = plugin.url_for('compilation_season_short', compilation_id=item['id'])
@@ -287,7 +284,7 @@ def _get_listitem(item):
                           'sortseason': item['season'],
                           }
 
-    mpaa = api.get_age_restricted_rating(item.get('restrict'), 'mpaa')
+    mpaa = api.get_age_restricted_rating(item.get('restrict'), 'rars')
 
     video_info = {'title': title,
                   'originaltitle': orig_title if orig_title else title,
@@ -301,9 +298,10 @@ def _get_listitem(item):
                   'cast': item['artists'],
                   'country': country,
                   'genre': genre,
+                  'rating': rating,
                   }
     video_info.update(video_info_upd)
-                
+
     listitem = {'label': title,
 #                'ratings': ratings,
                 'info': {'video': video_info,
@@ -329,7 +327,7 @@ def play_video(video_id):
     try:
         video_info = api.videoinfo(video_id)
         listitem = _get_listitem(video_info)
-        
+
         videolinks = api.videolinks(video_id)
         listitem['path'] = _get_video_path(videolinks)
     except api.APIException as e:
@@ -338,16 +336,6 @@ def play_video(video_id):
         listitem = {}
 
     plugin.resolve_url(listitem, succeeded)
-
-#===============================================================================
-#     list_item = _get_listitem(episode, 'episode')
-#     succeeded = False
-# 
-#     dialog = xbmcgui.Dialog()
-#     if not episode['isGeoAccess']:
-#         dialog.ok(plugin.name, _('This video not available in your region'))
-#     else:
-#===============================================================================
 
 
 def _get_video_path(links):
@@ -365,7 +353,7 @@ def _get_video_path(links):
         path = links['MP4-HD720']
     if (not path or video_quality >= 4) and links.get('MP4-HD1080') is not None:
         path = links['MP4-HD1080']
-   
+
     return path
 
 
@@ -425,7 +413,7 @@ def search():
 
 
 def _list_search(data):
-    
+
     for item in data['list']:
         listitem = _get_listitem(item)
         yield listitem
@@ -445,19 +433,19 @@ def _init_api():
         user_uid = IVI.get_uid()
         plugin.set_setting('user_uid', user_uid)
     api.set_prop('uid', user_uid)
-    
+
     try:
         if not session:
             session_info = api.get_session()
             session = session_info['session']
             user_ab_bucket = session_info['user_ab_bucket']
-            
+
             plugin.set_setting('session', session)
             plugin.set_setting('user_ab_bucket', user_ab_bucket)
 
         api.set_prop('user_ab_bucket', user_ab_bucket)
         api.set_prop('session', session)
-            
+
         geo_info = _api_geocheck()
         if geo_info['actual_app_version'] != app_version:
             plugin.set_setting('app_version', geo_info['actual_app_version'])
@@ -471,7 +459,7 @@ def _init_api():
         if app_info['subsite_id'] != subsite_id:
             plugin.set_setting('subsite_id', app_info['subsite_id'])
             api.set_prop('subsite_id', app_info['subsite_id'])
-        
+
     except api.APIException as e:
         plugin.notify_error(e.msg)
 
@@ -499,7 +487,7 @@ def _countries():
     items = {}
     for country in countries:
         items[int(country['id'])] = country
-    
+
     return items
 
 
@@ -513,7 +501,7 @@ def _get_genre(category_id, genre_id):
                     return genre['title']
     return ''
 
-        
+
 def _get_rating_source():
     rating_source = plugin.get_setting('video_rating')
     if rating_source == 0:
@@ -541,9 +529,9 @@ def _get_ratings(item):
     default_source = _get_rating_source()
     items = []
     for rating in _rating_sources():
-        item = _make_rating(item, **rating)
-        item['defaultt'] = (item['type'] == default_source)
-        items.append(item)
+        rating_item = _make_rating(item, **rating)
+        rating_item['defaultt'] = (rating_item['type'] == default_source)
+        items.append(rating_item)
 
     return items
 
