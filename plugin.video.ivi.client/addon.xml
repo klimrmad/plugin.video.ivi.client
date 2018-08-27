@@ -4,6 +4,7 @@
         <import addon="xbmc.python" version="2.19.0"/>
         <import addon="script.module.requests"/>
         <import addon="script.module.simplemedia" version="1.0.3"/>
+        <import addon="script.module.inputstreamhelper"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="default.py">
         <provides>video</provides>
@@ -14,7 +15,7 @@
         <description lang="en_GB"></description>
         <description lang="ru_RU">Смотрите ваши любимые фильмы и сериалы на большом экране вашего ТВ.[CR]Доступ к огромному каталогу фильмов и сериалов для бесплатного просмотра в один клик.[CR]Смотрите в HD качестве на большом экране вашего телевизора.</description>
         <disclaimer lang="en_GB"></disclaimer>
-        <disclaimer lang="ru_RU">Самая большая в России легальная фильмотек</disclaimer>
+        <disclaimer lang="ru_RU">Самая большая в России легальная фильмотека</disclaimer>
         <language>ru</language>
         <platform>all</platform>
         <license>GNU GENERAL PUBLIC LICENSE. Version 3, 29 June 2007</license>

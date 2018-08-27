@@ -14,6 +14,22 @@ msgctxt "#30001"
 msgid "Search"
 msgstr ""
 
+msgctxt "#30002"
+msgid "Watch Later"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Watch History"
+msgstr ""
+
+msgctxt "#30004"
+msgid "Unfinished"
+msgstr ""
+
+msgctxt "#30005"
+msgid "Purchases"
+msgstr ""
+
 msgctxt "#30011"
 msgid "New Search..."
 msgstr ""
@@ -58,6 +74,30 @@ msgctxt "#30043"
 msgid "Trailer not found"
 msgstr ""
 
+msgctxt "#30044"
+msgid "You have successfully logged in"
+msgstr ""
+
+msgctxt "#30045"
+msgid "You have successfully logged out"
+msgstr ""
+
+msgctxt "#30046"
+msgid "User not registered"
+msgstr ""
+
+msgctxt "#30047"
+msgid "Purchase"
+msgstr ""
+
+msgctxt "#30048"
+msgid "Subscription"
+msgstr ""
+
+msgctxt "#30200"
+msgid "General"
+msgstr ""
+
 msgctxt "#30201"
 msgid "File names for saving with 'Add To Lib'"
 msgstr ""
@@ -70,6 +110,10 @@ msgctxt "#30203"
 msgid "Results per page"
 msgstr ""
 
+msgctxt "#30204"
+msgid "Safe Search"
+msgstr ""
+
 msgctxt "#30210"
 msgid "Video Quality"
 msgstr ""
@@ -79,11 +123,11 @@ msgid "Low"
 msgstr ""
 
 msgctxt "#30212"
-msgid "High"
+msgid "Standart"
 msgstr ""
 
 msgctxt "#30213"
-msgid "Excellent"
+msgid "High"
 msgstr ""
 
 msgctxt "#30214"
@@ -108,4 +152,64 @@ msgstr ""
 
 msgctxt "#30223"
 msgid "KinoPoisk"
+msgstr ""
+
+msgctxt "#30300"
+msgid "My ivi"
+msgstr ""
+
+msgctxt "#30301"
+msgid "Login"
+msgstr ""
+
+msgctxt "#30302"
+msgid "Logout"
+msgstr ""
+
+msgctxt "#30303"
+msgid "E-mail/Phone"
+msgstr ""
+
+msgctxt "#30304"
+msgid "Password"
+msgstr ""
+
+msgctxt "#30305"
+msgid "SMS code"
+msgstr ""
+
+msgctxt "#30306"
+msgid "Your name"
+msgstr ""
+
+msgctxt "#30307"
+msgid "Gender"
+msgstr ""
+
+msgctxt "#30308"
+msgid "Year of birth"
+msgstr ""
+
+msgctxt "#30309"
+msgid "Phone"
+msgstr ""
+
+msgctxt "#30310"
+msgid "E-mail"
+msgstr ""
+
+msgctxt "#30311"
+msgid "ID"
+msgstr ""
+
+msgctxt "#30312"
+msgid "None"
+msgstr ""
+
+msgctxt "#30313"
+msgid "Male"
+msgstr ""
+
+msgctxt "#30314"
+msgid "Female"
 msgstr ""

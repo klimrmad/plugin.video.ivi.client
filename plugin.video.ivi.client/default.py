@@ -6,16 +6,20 @@ from __future__ import unicode_literals
 from future.utils import iteritems
 from simplemedia import py2_decode
 import simplemedia
+import inputstreamhelper
+
 import xbmc
 import xbmcplugin
 
 from resources.lib.ivi import IVI
-
+import xbmcgui
 
 plugin = simplemedia.RoutedPlugin()
 _ = plugin.initialize_gettext()
 
 api = None
+country = ''
+
 
 @plugin.route('/')
 def root():
@@ -46,6 +50,50 @@ def _list_root():
                      }
         yield list_item
 
+    # Favourites
+    url = plugin.url_for('favourites')
+    list_item = {'label': _('Watch Later'),
+                 'url': url,
+                 'icon': plugin.get_image('DefaultFavourites.png'),
+                 'fanart': plugin.fanart,
+                 'content_lookup': False,
+                 }
+    yield list_item
+
+    # Purchases
+    url = plugin.url_for('purchases')
+    list_item = {'label': _('Purchases'),
+                 'url': url,
+                 # 'icon': plugin.get_image('DefaultFavourites.png'),
+                 'icon': plugin.icon,
+                 'fanart': plugin.fanart,
+                 'content_lookup': False,
+                 }
+    yield list_item
+
+    # Unfinished
+    url = plugin.url_for('unfinished')
+    list_item = {'label': _('Unfinished'),
+                 'url': url,
+                 # 'icon': plugin.get_image('DefaultFavourites.png'),
+                 'icon': plugin.icon,
+                 'fanart': plugin.fanart,
+                 'content_lookup': False,
+                 }
+    yield list_item
+
+    # Watch History
+    url = plugin.url_for('watchhistory')
+    list_item = {'label': _('Watch History'),
+                 'url': url,
+                 # 'icon': plugin.get_image('DefaultFavourites.png'),
+                 'icon': plugin.icon,
+                 'fanart': plugin.fanart,
+                 'content_lookup': False,
+                 }
+    yield list_item
+
+    # Search
     url = plugin.url_for('search_history')
     list_item = {'label': _('Search'),
                  'url': url,
@@ -99,6 +147,12 @@ def _list_category(data, category_hru=''):
 
     use_pages = (category_hru != '')
 
+    use_atl_names = plugin.params.get('atl')
+    if use_atl_names is None \
+      and plugin.get_setting('use_atl_names'):
+        use_atl_names = plugin.get_setting('use_atl_names')
+        plugin.params['atl'] = use_atl_names
+    
     for item in data['list']:
         listitem = _get_listitem(item)
         yield listitem
@@ -106,6 +160,8 @@ def _list_category(data, category_hru=''):
     page_params = {}
     page_params.update(plugin.params)
     page_params['step'] = data['step']
+    if use_atl_names:
+        page_params['atl'] = use_atl_names
 
     if use_pages \
       and data['from'] >= data['step']:
@@ -122,6 +178,198 @@ def _list_category(data, category_hru=''):
       and data['total'] >= data['from'] + data['step']:
         page_params['from'] = data['from'] + data['step']
         url = plugin.url_for('category', category_hru=category_hru, **page_params)
+        item_info = {'label': _('Next page...'),
+                     'url':   url}
+        yield item_info
+
+
+@plugin.route('/favourites')
+def favourites():
+
+    step = plugin.params.get('step', plugin.get_setting('step', False))
+    step = int(step)
+    start = plugin.params.get('from', '0')
+    start = int(start)
+    params = {'from': start,
+              }
+
+    try:
+        favourites_info = api.user_favourites(step, **params)
+        params = {'items': _list_favourites(favourites_info),
+                  'total_items': favourites_info['count'],
+                  'content': 'movies',
+                  'category': _('Watch Later'),
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_NONE, 'label2Mask': '%Y / %O'},
+                  'update_listing': (start > 0),
+                  }
+    except api.APIException as e:
+        plugin.notify_error(e.msg)
+        params = {'items': [],
+                  'succeeded': False,
+                  }
+
+    plugin.create_directory(**params)
+
+
+@plugin.route('/watchhistory')
+def watchhistory():
+
+    step = plugin.params.get('step', plugin.get_setting('step', False))
+    step = int(step)
+    start = plugin.params.get('from', '0')
+    start = int(start)
+    params = {'from': start,
+              }
+
+    try:
+        watchhistory_info = api.watchhistory(step, **params)
+        params = {'items': _list_watchhistory(watchhistory_info),
+                  'total_items': watchhistory_info['count'],
+                  'content': 'movies',
+                  'category': _('Watch History'),
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_NONE, 'label2Mask': '%Y / %O'},
+                  'update_listing': (start > 0),
+                  }
+    except api.APIException as e:
+        plugin.notify_error(e.msg)
+        params = {'items': [],
+                  'succeeded': False,
+                  }
+
+    plugin.create_directory(**params)
+
+
+@plugin.route('/unfinished')
+def unfinished():
+
+    step = plugin.params.get('step', plugin.get_setting('step', False))
+    step = int(step)
+    start = plugin.params.get('from', '0')
+    start = int(start)
+    params = {'from': start,
+              }
+
+    try:
+        unfinished_info = api.unfinished(step, **params)
+        params = {'items': _list_favourites(unfinished_info),
+                  'total_items': unfinished_info['count'],
+                  'content': 'movies',
+                  'category': _('Unfinished'),
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_NONE, 'label2Mask': '%Y / %O'},
+                  'update_listing': (start > 0),
+                  }
+    except api.APIException as e:
+        plugin.notify_error(e.msg)
+        params = {'items': [],
+                  'succeeded': False,
+                  }
+
+    plugin.create_directory(**params)
+
+
+@plugin.route('/purchases')
+def purchases():
+
+    step = plugin.params.get('step', plugin.get_setting('step', False))
+    step = int(step)
+    start = plugin.params.get('from', '0')
+    start = int(start)
+    params = {'from': start,
+              }
+
+    try:
+        purchases_info = api.purchases(step, **params)
+        params = {'items': _list_favourites(purchases_info),
+                  'total_items': purchases_info['count'],
+                  'content': 'movies',
+                  'category': _('Purchases'),
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_NONE, 'label2Mask': '%Y / %O'},
+                  'update_listing': (start > 0),
+                  }
+    except api.APIException as e:
+        plugin.notify_error(e.msg)
+        params = {'items': [],
+                  'succeeded': False,
+                  }
+
+    plugin.create_directory(**params)
+
+
+def _list_favourites(data):
+
+    use_pages = True
+
+    use_atl_names = plugin.params.get('atl')
+    if use_atl_names is None \
+      and plugin.get_setting('use_atl_names'):
+        use_atl_names = plugin.get_setting('use_atl_names')
+        plugin.params['atl'] = use_atl_names
+
+    for item in data['list']:
+        listitem = _get_listitem(item)
+        yield listitem
+
+    page_params = {}
+    page_params.update(plugin.params)
+    page_params['step'] = data['step']
+    if use_atl_names:
+        page_params['atl'] = use_atl_names
+
+    if use_pages \
+      and data['from'] >= data['step']:
+        page_params['from'] = data['from'] - data['step']
+        if page_params['from'] == 0:
+            del page_params['from']
+
+        url = plugin.url_for('favourites', **page_params)
+        item_info = {'label': _('Previous page...'),
+                     'url':   url}
+        yield item_info
+
+    if use_pages \
+      and data['total'] >= data['from'] + data['step']:
+        page_params['from'] = data['from'] + data['step']
+        url = plugin.url_for('favourites', **page_params)
+        item_info = {'label': _('Next page...'),
+                     'url':   url}
+        yield item_info
+
+
+def _list_watchhistory(data):
+
+    use_pages = True
+
+    use_atl_names = plugin.params.get('atl')
+    if use_atl_names is None \
+      and plugin.get_setting('use_atl_names'):
+        use_atl_names = plugin.get_setting('use_atl_names')
+        plugin.params['atl'] = use_atl_names
+
+    for item in data['list']:
+        listitem = _get_listitem(item)
+        yield listitem
+
+    page_params = {}
+    page_params.update(plugin.params)
+    page_params['step'] = data['step']
+    if use_atl_names:
+        page_params['atl'] = use_atl_names
+
+    if use_pages \
+      and data['from'] >= data['step']:
+        page_params['from'] = data['from'] - data['step']
+        if page_params['from'] == 0:
+            del page_params['from']
+
+        url = plugin.url_for('watchhistory', **page_params)
+        item_info = {'label': _('Previous page...'),
+                     'url':   url}
+        yield item_info
+
+    if use_pages \
+      and data['total'] >= data['from'] + data['step']:
+        page_params['from'] = data['from'] + data['step']
+        url = plugin.url_for('watchhistory', **page_params)
         item_info = {'label': _('Next page...'),
                      'url':   url}
         yield item_info
@@ -175,14 +423,21 @@ def _list_seasons(data):
 @plugin.route('/compilation/<compilation_id>/', 'compilation_season_short')
 @plugin.route('/compilation/<compilation_id>/<season>')
 def compilation_season(compilation_id, season=None):
+    use_atl_names = plugin.params.get('atl', False)
+
     try:
         season_info = api.videofromcompilation(compilation_id, season)
 
+        if use_atl_names:
+            sort_methods = xbmcplugin.SORT_METHOD_NONE
+        else:
+            sort_methods = xbmcplugin.SORT_METHOD_EPISODE
+            
         params = {'items': _list_episodes(season_info),
                   'total_items': season_info['count'],
                   'content': 'episodes',
     #              'category': season_info['title'],
-                  'sort_methods': xbmcplugin.SORT_METHOD_EPISODE,
+                  'sort_methods': sort_methods,
                   'cache_to_disk': True,
                   }
     except api.APIException as e:
@@ -195,18 +450,31 @@ def compilation_season(compilation_id, season=None):
 
 
 def _list_episodes(data):
-
-    for item in data['list']:
+    use_atl_names = plugin.params.get('atl', False)
+    if use_atl_names:
+        compilation_info = api.compilationinfo(data['compilation_id'])
+    else:
+        compilation_info = {}
+    
+    item = {'compilation_orig_title': compilation_info.get('orig_title', ''),
+            }
+    for _item in data['list']:
+        item.update(_item)
         listitem = _get_listitem(item)
         yield listitem
 
 
-def _get_listitem(item):
+def _get_listitem(item, _watch=False):
     properties = {}
     video_info_upd = {}
     orig_title = ''
     countries = _countries()
 
+    use_atl_names = plugin.params.get('atl', False)
+    ext_params = {}
+    if use_atl_names:
+        ext_params['atl'] = use_atl_names
+    
     country = []
     if isinstance(item['country'], list):
         for _country in item['country']:
@@ -227,7 +495,7 @@ def _get_listitem(item):
         if _rating['defaultt']:
             rating = _rating['rating']
             break
-
+        
     if item['object_type'] == 'video':
         url = plugin.url_for('play_video', video_id=item['id'])
         is_folder = False
@@ -235,15 +503,49 @@ def _get_listitem(item):
         if item.get('episode') is None:
             title = item['title']
             orig_title = item['orig_title']
+            
+            if use_atl_names:
+                atl_name_parts = []
+    
+                if orig_title:
+                    atl_name_parts.append(orig_title)
+                else:
+                    atl_name_parts.append(title)
+                    
+                if item['year'] > 0:
+                    atl_name_parts.append(' ({0})'.format(item['year']))
+                    
+                title = ''.join(atl_name_parts)
+            
             mediatype = 'movie'
 
             video_info_upd = {'duration': item['duration_minutes'] * 60,
                               }
         else:
             title = item['title']
+            orig_title = item['orig_title']
+            season = max(item.get('season', 0), 1)
+            
+            if use_atl_names:
+                atl_name_parts = []
+                if item['compilation_orig_title']:
+                    atl_name_parts.append(item['compilation_orig_title'])
+                else:
+                    atl_name_parts.append(item['compilation_title'])
+                    
+                atl_name_parts.append('.s%02de%02d' % (season, item['episode']))
+
+                if orig_title:
+                    atl_name_parts.append('-')
+                    atl_name_parts.append(orig_title)
+                elif title:
+                    atl_name_parts.append('-')
+                    atl_name_parts.append(title)
+                    
+                title = ''.join(atl_name_parts)
+
             mediatype = 'episode'
 
-            season = max(item.get('season', 0), 1)
             video_info_upd = {'duration': item['duration_minutes'] * 60,
                               'tvshowtitle': item['compilation_title'],
                               'episode': item['episode'],
@@ -254,9 +556,9 @@ def _get_listitem(item):
 
     elif item['object_type'] == 'compilation':
         if item['seasons_count'] == 0:
-            url = plugin.url_for('compilation_season_short', compilation_id=item['id'])
+            url = plugin.url_for('compilation_season_short', compilation_id=item['id'], **ext_params)
         else:
-            url = plugin.url_for('compilation', compilation_id=item['id'])
+            url = plugin.url_for('compilation', compilation_id=item['id'], **ext_params)
         mediatype = 'tvshow'
         is_folder = True
         is_playable = False
@@ -269,7 +571,7 @@ def _get_listitem(item):
                       }
 
     elif item['object_type'] == 'season':
-        url = plugin.url_for('compilation_season', compilation_id=item['id'], season=item['season'])
+        url = plugin.url_for('compilation_season', compilation_id=item['id'], season=item['season'], **ext_params)
         mediatype = 'season'
         is_folder = True
         is_playable = False
@@ -285,6 +587,17 @@ def _get_listitem(item):
                           }
 
     mpaa = api.get_age_restricted_rating(item.get('restrict'), 'rars')
+ 
+    if not _watch:
+        if item['content_paid_type'] == 'SVOD':
+            paid_shiels = '[{0}]'.format(_('Subscription'))
+        elif item['content_paid_type'] == 'EST':
+            paid_shiels = '[{0}]'.format(_('Purchase'))
+        else:
+            paid_shiels = None
+    
+        if paid_shiels is not None:
+            label = '{0} {1}'.format(title, paid_shiels)
 
     video_info = {'title': title,
                   'originaltitle': orig_title if orig_title else title,
@@ -300,6 +613,7 @@ def _get_listitem(item):
                   'genre': genre,
                   'rating': rating,
                   }
+
     video_info.update(video_info_upd)
 
     listitem = {'label': title,
@@ -326,10 +640,27 @@ def play_video(video_id):
 
     try:
         video_info = api.videoinfo(video_id)
-        listitem = _get_listitem(video_info)
+        listitem = _get_listitem(video_info, True)
 
         videolinks = api.videolinks(video_id)
-        listitem['path'] = _get_video_path(videolinks)
+        path_MP4 = _get_video_path(videolinks, 'MP4')
+        path_DASH = _get_video_path(videolinks, 'DASH-MDRM')
+        if path_MP4 is not None:
+            listitem['path'] = path_MP4['url']
+        elif path_DASH is not None:
+            ia_helper = inputstreamhelper.Helper('mpd', drm='widevine')
+            if ia_helper.check_inputstream():
+                license_key = api.get_license_key(video_id, path_DASH['mdrm_asset_id'])
+                properties = {'inputstream.adaptive.license_type': 'com.widevine.alpha',
+                              'inputstream.adaptive.license_key': license_key + '|Content-Type=application/octet-stream&User-Agent=' + xbmc.getUserAgent() + '&Accept-Encoding=gzip&Connection=Keep-Alive|R{SSM}|',
+                              'inputstream.adaptive.server_certificate': api.get_server_certificate(),
+                              'inputstream.adaptive.manifest_type': 'mpd',
+                              'inputstreamaddon': 'inputstream.adaptive',
+                              }
+                # listitem['mime'] = 'application/dash+xml'
+                listitem['properties'] = properties
+                listitem['path'] = path_DASH['url']  # api.get_link(path_DASH);
+            
     except api.APIException as e:
         plugin.notify_error(e.msg)
         succeeded = False
@@ -338,21 +669,17 @@ def play_video(video_id):
     plugin.resolve_url(listitem, succeeded)
 
 
-def _get_video_path(links):
+def _get_video_path(links, prefix):
 
     video_quality = plugin.get_setting('video_quality')
 
-    path = ''
-    if (not path or video_quality >= 0) and links.get('MP4-lo') is not None:
-        path = links['MP4-lo']
-    if (not path or video_quality >= 1) and links.get('MP4-hi') is not None:
-        path = links['MP4-hi']
-    if (not path or video_quality >= 2) and links.get('MP4-SHQ') is not None:
-        path = links['MP4-SHQ']
-    if (not path or video_quality >= 3) and links.get('MP4-HD720') is not None:
-        path = links['MP4-HD720']
-    if (not path or video_quality >= 4) and links.get('MP4-HD1080') is not None:
-        path = links['MP4-HD1080']
+    quality_list = ['lo', 'hi', 'SHQ', 'HD720', 'HD1080']
+    
+    path = None
+    for i, q in enumerate(quality_list):
+        field = '{0}-{1}'.format(prefix, q)
+        if (not path or video_quality >= i) and links.get(field) is not None:
+            path = links[field]
 
     return path
 
@@ -408,10 +735,109 @@ def search():
         xbmc.executebuiltin('Container.Update("%s")' % url)
 
     elif keyword:
-        videos_info = api.search(keyword)
-        plugin.create_directory(_list_search(videos_info), content='movies', category=_('Search'))
+        safe_search = plugin.get_setting('safe_search')
+        videos_info = api.search(keyword, safe_search)
+        params = {'items': _list_search(videos_info),
+                  # 'total_items': unfinished_info['count'],
+                  'content': 'movies',
+                  'category': '{0}/{1}'.format(_('Search'), keyword),
+                  'sort_methods': {'sortMethod': xbmcplugin.SORT_METHOD_NONE, 'label2Mask': '%Y / %O'},
+                  }
+        plugin.create_directory(**params)
 
 
+@plugin.route('/login')
+def login():
+    _login = _get_keyboard_text('', _('E-mail/Phone'))
+    if not _login:
+        return
+
+    dialog = xbmcgui.Dialog()
+
+    try:
+        validate_result = api.user_validate(_login)
+    except api.APIException as e:
+        dialog.ok(plugin.name, e.msg)
+        return
+    
+    if validate_result['action'] == 'login':
+        if validate_result['what'] == 'email':
+            _password = _get_keyboard_text('', _('Password'), True)
+            if not _password:
+                return
+            try:
+                login_result = api.user_login_ivi(_login, _password)
+            except api.APIException as e:
+                dialog.ok(plugin.name, e.msg)
+                return
+        elif validate_result['what'] == 'phone':
+            try:
+                register_result = api.user_register_phone(_login)
+            except api.APIException as e:
+                dialog.ok(plugin.name, e.msg)
+                return
+            if not register_result['success']:
+                return
+            _code = _get_keyboard_text('', _('SMS code'))
+            if not _code:
+                return
+            try:
+                login_result = api.user_login_phone(_login, _code)
+            except api.APIException as e:
+                dialog.ok(plugin.name, e.msg)
+                return
+
+        api.set_prop('session', login_result['session'])
+        merge_result = api.user_merge(plugin.get_setting('session'))
+        if merge_result == 'ok':
+            user_fields = get_user_fields(login_result)
+            user_fields['user_login'] = _login
+            user_fields['session'] = login_result['session']
+            plugin.set_settings(user_fields)
+
+        dialog.ok(plugin.name, _('You have successfully logged in'))
+    elif validate_result['action'] == 'register':
+        dialog.ok(plugin.name, _('Login not registered'))
+
+
+def _get_keyboard_text(line='', heading='', hidden=False):            
+    kbd = xbmc.Keyboard(line, heading, hidden)
+    kbd.doModal()
+    if kbd.isConfirmed():
+        return kbd.getText()
+
+
+def get_user_fields(user_info=None):
+    user_info = user_info or {}
+
+    fields = {'user_login': user_info.get('login') or '',
+              'user_name': '{0} {1}'.format(user_info.get('firstname') or '', user_info.get('lastname') or '').strip(),
+              'user_id': user_info.get('id') or '',
+              'user_phone': user_info.get('msisdn') or '',
+              'user_email': user_info.get('email') or '',
+              'user_gender': user_info.get('gender') or 0,
+              'user_birthday': (user_info.get('birthday') or '')[0:4],
+              }
+
+    return fields
+
+
+@plugin.route('/logout')
+def logout():
+    logout_result = api.user_logout()
+    if logout_result != 'ok':
+        return
+
+    user_fields = get_user_fields()
+    
+    user_fields['session'] = ''
+    user_fields['user_ab_bucket'] = ''
+    plugin.set_settings(user_fields)
+
+    dialog = xbmcgui.Dialog()
+    dialog.ok(plugin.name, _('You have successfully logged out'))
+    
+    
 def _list_search(data):
 
     for item in data['list']:
@@ -421,6 +847,7 @@ def _list_search(data):
 
 def _init_api():
     global api
+    global country
 
     app_version = plugin.get_setting('app_version')
     subsite_id = plugin.get_setting('subsite_id', False)
@@ -436,9 +863,9 @@ def _init_api():
 
     try:
         if not session:
-            session_info = api.get_session()
+            session_info = api.user_register()
             session = session_info['session']
-            user_ab_bucket = session_info['user_ab_bucket']
+            # user_ab_bucket = session_info['user_ab_bucket']
 
             plugin.set_setting('session', session)
             plugin.set_setting('user_ab_bucket', user_ab_bucket)
@@ -454,12 +881,19 @@ def _init_api():
         if geo_info['user_ab_bucket'] != user_ab_bucket:
             plugin.set_setting('user_ab_bucket', geo_info['user_ab_bucket'])
             api.set_prop('user_ab_bucket', geo_info['user_ab_bucket'])
+        country = geo_info['country_code']
 
         app_info = _api_appinfo()
         if app_info['subsite_id'] != subsite_id:
             plugin.set_setting('subsite_id', app_info['subsite_id'])
             api.set_prop('subsite_id', app_info['subsite_id'])
 
+        if not plugin.get_setting('user_id'):
+            user_info = api.user_info()
+            
+            user_fields = get_user_fields(user_info)
+            plugin.set_settings(user_fields)
+ 
     except api.APIException as e:
         plugin.notify_error(e.msg)
 
