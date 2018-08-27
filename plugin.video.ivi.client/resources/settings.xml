@@ -1,15 +1,30 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
-    <setting label="30202" type="labelenum" id="history_length" values="5|10|15|20|25" default="10" />
-    <setting label="30203" type="slider" id="step" default="20" range="5,5,100" option="int" />
-    <setting type="sep"/>
-    <setting label="30210" type="enum" id="video_quality" lvalues="30211|30212|30213|30214|30215" default="2"/>
-    <setting label="30220" type="enum" id="video_rating" lvalues="30221|30222|30223" default="0" />
-    <setting type="bool" id="united_search" visible="false" default="true" />
-    <setting type="text" id="us_command" visible="false" default="action=search&amp;keyword=" />
-    <setting type="text" id="app_version" visible="false" default="2277" />
-    <setting type="text" id="user_ab_bucket" visible="false" default="" />
-    <setting type="text" id="session" visible="false" default="" />
-    <setting type="text" id="subsite_id" visible="false" default="" />
-    <setting type="text" id="user_uid" visible="false" default="" />
+    <category label="30200">
+	    <setting label="30201" type="bool" id="use_atl_names" default="false" />
+	    <setting label="30202" type="labelenum" id="history_length" values="5|10|15|20|25" default="10" />
+	    <setting label="30203" type="slider" id="step" default="20" range="5,5,100" option="int" />
+	    <setting type="sep"/>
+	    <setting label="30204" type="bool" id="safe_search" default="true"/>
+	    <setting label="30210" type="enum" id="video_quality" lvalues="30211|30212|30213|30214|30215" default="2"/>
+	    <setting label="30220" type="enum" id="video_rating" lvalues="30221|30222|30223" default="0" />
+	    <setting type="bool" id="united_search" visible="false" default="true" />
+	    <setting type="text" id="us_command" visible="false" default="action=search&amp;keyword=" />
+    </category>
+    <category label="30300">
+        <setting type="text" id="user_login" visible="false" default=""/>
+	    <setting label="30301" type="action" option="close" visible="eq(-1,)" action="RunPlugin(plugin://plugin.video.ivi.client/login)" />
+	    <setting label="30302" type="action" option="close" visible="!eq(-2,)" action="RunPlugin(plugin://plugin.video.ivi.client/logout)" />
+        <setting label="30311" type="text" id="user_id" visible="!eq(0,)" enable="false" default=""/>
+        <setting label="30306" type="text" id="user_name" visible="!eq(0,)" enable="false" />
+        <setting label="30307" type="enum" id="user_gender" visible="!eq(0,0)" enable="false" lvalues="30312|30313|30314" default="0"/>
+        <setting label="30308" type="number" id="user_birthday" visible="!eq(0,)" enable="false"  default=""/>
+        <setting label="30309" type="text" id="user_phone" visible="!eq(0,)" enable="false" default=""/>
+        <setting label="30310" type="text" id="user_email" visible="!eq(0,)" enable="false" default=""/>
+ 	    <setting type="text" id="app_version" visible="false" default="2277" />
+	    <setting type="text" id="user_ab_bucket" visible="false" default="" />
+	    <setting type="text" id="subsite_id" visible="false" default="" />
+	    <setting type="text" id="user_uid" visible="false" default="" />
+	    <setting type="text" id="session" visible="false" default="" />
+    </category>
 </settings>

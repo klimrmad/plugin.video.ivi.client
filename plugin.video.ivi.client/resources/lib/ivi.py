@@ -8,8 +8,10 @@ import random
 
 from future.utils import python_2_unicode_compatible, iteritems
 import requests
+from base64 import b64encode
+from urllib.parse import urlencode
 
-from blowfish import Blowfish
+from .blowfish import Blowfish
 
 
 @python_2_unicode_compatible
@@ -89,6 +91,33 @@ class IVI(object):
 
         return result
 
+    def get_server_certificate(self):
+        url = 'https://w.ivi.ru/certificate/'
+
+        try:
+            r = requests.get(url, headers=self._headers)
+            r.raise_for_status()
+
+        except requests.ConnectionError:
+            raise self.APIException('Connection error')
+        except requests.HTTPError as e:
+            raise self.APIException(str(e))
+
+        result = b64encode(r.content)
+
+        return result
+
+    def get_license_key(self, content_id, mdrm_asset_id):
+        url = 'https://w.ivi.ru/proxy/'
+
+        license_keys = {'content_id': content_id,
+                        'asset': mdrm_asset_id,
+                        'app_version': self._app_version,
+                        'session': self._session,
+                        }
+    
+        return '{0}?{1}'.format(url, urlencode(license_keys, doseq=True))
+ 
     def _get_sign(self, text):
         cipher = Blowfish(self._key)
         cipher.initCBC()
@@ -128,7 +157,7 @@ class IVI(object):
             if rtype == 'GET':
                 r = requests.get(url, params, headers=self._headers, **kwqrgs)
             elif rtype == 'POST':
-                r = requests.get(url, params, headers=self._headers, **kwqrgs)
+                r = requests.post(url, params, headers=self._headers, **kwqrgs)
             # print(r.url)
             r.raise_for_status()
         except requests.ConnectionError:
@@ -146,7 +175,10 @@ class IVI(object):
 
         if isinstance(j, dict) \
           and j.get('error') is not None:
-            raise self.APIException(j['error']['message'])
+            if j['error'].get('user_message') is not None:
+                raise self.APIException(j['error']['user_message'])
+            else:
+                raise self.APIException(j['error']['message'])
         return j
 
     def appversioninfo(self):
@@ -236,15 +268,15 @@ class IVI(object):
         fields = ['allow_download', 'country', 'description', 'years', 'total_contents', 'artists', 'orig_title', 'seasons_count',
                   'duration_minutes', 'fake', 'genres', 'has_creators', 'id', 'imdb_rating', 'ivi_pseudo_release_date', 'release_date',
                   'ivi_rating_10', 'ivi_release_date', 'kind', 'kp_rating', 'poster_originals.path', 'restrict', 'subsites_availability',
-                  'synopsis', 'thumb_originals.path', 'title', 'unavailable_on_current_subsite', 'used_to_be_paid', 'watch_time', 'year',
+                  'synopsis', 'thumb_originals.path', 'title', 'unavailable_on_current_subsite', 'watch_time', 'year',
                   'additional_data.additional_data_id-data_type-duration-preview-title', 'count', 'object_type',
-                  'promo_images.content_format-url', 'categories']
+                  'promo_images.content_format-url', 'categories', 'available_in_countries', 'content_paid_type']
 
         start = params.get('from', 0)
         sort = params.get('sort', 'new')
         u_params = {'from': start,
                     'to': start + step - 1,
-                    'paid_type': 'AVOD',
+                    # 'paid_type': 'EST',
                     'sort': sort,
                     'category': category_id,
                     'fields': ','.join(fields)}
@@ -279,6 +311,8 @@ class IVI(object):
                  'kp_rating': item.get('kp_rating', ''),
                  'ivi_rating': item.get('ivi_rating_10', ''),
                  'categories': item['categories'],
+                 'content_paid_type': item.get('content_paid_type', ''),
+                 'available_in_countries': item.get('available_in_countries', []),
                  }
         if item.get('poster_originals') is not None \
           and item['poster_originals']:
@@ -319,6 +353,12 @@ class IVI(object):
         for item in items:
             yield cls._make_item(item)
 
+    @classmethod
+    def _purchases_list(cls, items):
+        for item in items:
+            if item['object_type'] == 'content':
+                yield cls._make_item(item['object_info'])
+
     def compilationinfo(self, compilation_id):
         url = 'mobileapi/compilationinfo/v5/'
 
@@ -341,11 +381,11 @@ class IVI(object):
     def videofromcompilation(self, compilation_id, season=None):
         url = 'mobileapi/videofromcompilation/v5/'
 
-        fields = ['categories', 'compilation', 'compilation_title', 'content_paid_types', 'country', 'description',
+        fields = ['categories', 'compilation', 'compilation_title', 'country', 'description', 'content_paid_type',
                   'duration_minutes', 'episode', 'fake', 'genres', 'has_creators', 'id', 'imdb_rating', 'ivi_rating_10',
                   'ivi_release_date', 'kind', 'kp_rating', 'poster_originals.path', 'restrict', 'season', 'synopsis',
                   'thumb_originals.path', 'title', 'year', 'additional_data.additional_data_id-data_type-duration-preview-title',
-                  'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'release_date']
+                  'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'release_date', 'available_in_countries']
 
         start = 0
         step = 100
@@ -371,6 +411,7 @@ class IVI(object):
                 break
 
         result = {'count': len(items),
+                  'compilation_id': compilation_id,
                   'list': self._catalogue_list(items),
                   }
         return result
@@ -378,11 +419,11 @@ class IVI(object):
     def videoinfo(self, video_id):
         url = 'mobileapi/videoinfo/v5/'
 
-        fields = ['categories', 'compilation', 'compilation_title', 'content_paid_types', 'country', 'description',
+        fields = ['categories', 'compilation', 'compilation_title', 'content_paid_type', 'country', 'description',
                   'duration_minutes', 'episode', 'fake', 'genres', 'has_creators', 'id', 'imdb_rating', 'ivi_rating_10',
                   'ivi_release_date', 'kind', 'kp_rating', 'poster_originals.path', 'restrict', 'season', 'synopsis',
                   'thumb_originals.path', 'title', 'year', 'additional_data.additional_data_id-data_type-duration-preview-title',
-                  'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'release_date']
+                  'promo_images.content_format-url', 'artists', 'orig_title', 'object_type', 'release_date', 'available_in_countries']
 
         u_params = {'id': video_id,
                     'fields': ','.join(fields)}
@@ -399,7 +440,7 @@ class IVI(object):
                   'params':[]
                   }
 
-        r = self._http_request(url, json=u_json, rtype='POST')
+        r = self._http_request(url, json=u_json)
         j = self._extract_json(r)
 
         u_json = {'method':'da.content.get',
@@ -419,25 +460,27 @@ class IVI(object):
                     'sign': self._get_sign(j['result'] + data),
                     }
 
-        r = self._http_request(url, u_params, data=data, rtype='POST')
+        r = self._http_request(url, u_params, data=data)
         j = self._extract_json(r)
 
         result = {}
         for _file in j['result']['files']:
-            result[_file['content_format']] = _file['url']
+            result[_file['content_format']] = _file
 
         return result
 
-    def search(self, keyword):
+    def search(self, keyword, safe_search=False):
 
         url = 'mobileapi/search/common/'
 
         u_params = {'query': keyword,
                     'from': 0,
                     'to': 99,
-                    'paid_type': 'AVOD',
+#                    'paid_type': 'AVOD',
                     'withpreorderable': 0,
                     }
+        if safe_search:
+            u_params['age'] = 16
 
         r = self._http_request(url, params=u_params)
         j = self._extract_json(r)
@@ -449,6 +492,234 @@ class IVI(object):
 
         result = {'count': len(items),
                   'list': self._catalogue_list(items),
+                  }
+
+        return result
+
+    def user_validate(self, value):
+        
+        url = 'mobileapi/user/validate/v5/'
+
+        u_params = {'value': value,
+                    'user_ab_bucket': self._user_ab_bucket,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_login_ivi(self, login, password):
+        
+        url = 'mobileapi/user/login/ivi/v5/'
+        
+        u_params = {'email': login,
+                    'password': password,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_login_phone(self, phone, code):
+        
+        url = 'mobileapi/user/login/phone/v5/'
+        
+        u_params = {'phone': phone,
+                    'code': code,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_merge(self, rightsession):
+        
+        url = '/mobileapi/user/merge/v5/'
+        
+        u_params = {'rightsession': rightsession,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+        
+    def user_info(self):
+        
+        url = 'mobileapi/user/info/v5/'
+        
+        u_params = {'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_logout(self):
+        
+        url = 'mobileapi/user/logout/v5/'
+        
+        u_params = {'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_register(self, storageless=True):
+        
+        if storageless:
+            url = 'mobileapi/user/register/storageless/v5/'
+        
+        r = self._http_request(url, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_register_phone(self, phone):
+        
+        url = 'mobileapi/user/register/phone/v6/'
+  
+        u_params = {'phone': phone,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_favourites_count(self):
+        
+        url = 'mobileapi/user/favourites/v5/count'
+  
+        u_params = {'withunavailable': 1,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_favourites(self, step=20, **kwargs):
+        params = kwargs or {}
+        url = 'mobileapi/user/favourites/v5/'
+
+        start = params.get('from', 0)
+        u_params = {'from': start,
+                    'to': start + step - 1,
+                    'withunavailable': 0,
+                    'user_ab_bucket': self._user_ab_bucket,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        result = {'count': len(j['result']),
+                  'total': self.user_favourites_count(),
+                  'from': start,
+                  'step': step,
+                  'list': self._catalogue_list(j['result']),
+                  }
+
+        return result
+
+    def watchhistory(self, step=20, **kwargs):
+        params = kwargs or {}
+        url = 'mobileapi/watchhistory/v5/'
+
+        start = params.get('from', 0)
+        u_params = {'from': start,
+                    'to': start + step - 1,
+                    'user_ab_bucket': self._user_ab_bucket,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        if params.get('count_list', False):
+            result = {'count': len(j['result']),
+                      'from': start,
+                      'step': step,
+                      }
+        else:
+            params['from'] = start + step
+            params['count_list'] = True
+            
+            next_list = self.watchhistory(step, **params)
+
+            result = {'count': len(j['result']),
+                      'total': len(j['result']) + start + next_list['count'],
+                      'from': start,
+                      'step': step,
+                      'list': self._catalogue_list(j['result']),
+                      }
+
+        return result
+
+    def unfinished(self, step=20, **kwargs):
+        params = kwargs or {}
+        url = 'mobileapi/unfinished/video/v5/'
+
+        start = params.get('from', 0)
+        u_params = {'from': start,
+                    'to': start + step - 1,
+                    'user_ab_bucket': self._user_ab_bucket,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        if params.get('count_list', False):
+            result = {'count': len(j['result']),
+                      'from': start,
+                      'step': step,
+                      }
+        else:
+            params['from'] = start + step
+            params['count_list'] = True
+            
+            next_list = self.unfinished(step, **params)
+
+            result = {'count': len(j['result']),
+                      'total': len(j['result']) + start + next_list['count'],
+                      'from': start,
+                      'step': step,
+                      'list': self._catalogue_list(j['result']),
+                      }
+
+        return result
+
+    def purchases(self, step=20, **kwargs):
+        params = kwargs or {}
+        url = 'mobileapi/billing/v1/purchases/'
+
+        start = params.get('from', 0)
+        u_params = {'user_ab_bucket': self._user_ab_bucket,
+                    'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        result = {'count': len(j['result']),
+                  'total': len(j['result']),
+                  'from': start,
+                  'step': step,
+                  'list': self._purchases_list(j['result']),
                   }
 
         return result
