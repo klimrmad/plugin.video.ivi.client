@@ -326,7 +326,7 @@ class IVI(object):
 
         if item['object_type'] == 'video':
             result.update({'year': item.get('year'),
-                           'duration_minutes': item['duration_minutes'],
+                           'duration_minutes': item.get('duration_minutes', 0),
                            })
             if item.get('compilation_title') is not None:
                 result.update({'episode': item['episode'],
