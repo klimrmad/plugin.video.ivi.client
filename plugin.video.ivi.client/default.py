@@ -528,7 +528,7 @@ def _get_listitem(item, _watch=False):
             
             if use_atl_names:
                 atl_name_parts = []
-                if item['compilation_orig_title']:
+                if item.get('compilation_orig_title', ''):
                     atl_name_parts.append(item['compilation_orig_title'])
                 else:
                     atl_name_parts.append(item['compilation_title'])
@@ -590,14 +590,14 @@ def _get_listitem(item, _watch=False):
  
     if not _watch:
         if item['content_paid_type'] == 'SVOD':
-            paid_shiels = '[{0}]'.format(_('Subscription'))
+            paid_shield = '[{0}]'.format(_('Subscription'))
         elif item['content_paid_type'] == 'EST':
-            paid_shiels = '[{0}]'.format(_('Purchase'))
+            paid_shield = '[{0}]'.format(_('Purchase'))
         else:
-            paid_shiels = None
+            paid_shield = None
     
-        if paid_shiels is not None:
-            label = '{0} {1}'.format(title, paid_shiels)
+        if paid_shield is not None:
+            title = '{0} {1}'.format(title, paid_shield)
 
     video_info = {'title': title,
                   'originaltitle': orig_title if orig_title else title,
@@ -698,12 +698,16 @@ def search_history():
     listing.append({'label': _('New Search...'),
                     'url': plugin.url_for('search'),
                     'icon': plugin.get_image('DefaultAddonsSearch.png'),
+                    'is_folder': False,
+                    'is_playable': False,
                     'fanart': plugin.fanart})
 
     for item in history:
         listing.append({'label': item['keyword'],
                         'url': plugin.url_for('search', keyword=item['keyword']),
                         'icon': plugin.icon,
+                        'is_folder': True,
+                        'is_playable': False,
                         'fanart': plugin.fanart})
 
     plugin.create_directory(listing, content='files', category=_('Search'))
