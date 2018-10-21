@@ -698,12 +698,16 @@ def search_history():
     listing.append({'label': _('New Search...'),
                     'url': plugin.url_for('search'),
                     'icon': plugin.get_image('DefaultAddonsSearch.png'),
+                    'is_folder': False,
+                    'is_playable': False,
                     'fanart': plugin.fanart})
 
     for item in history:
         listing.append({'label': item['keyword'],
                         'url': plugin.url_for('search', keyword=item['keyword']),
                         'icon': plugin.icon,
+                        'is_folder': True,
+                        'is_playable': False,
                         'fanart': plugin.fanart})
 
     plugin.create_directory(listing, content='files', category=_('Search'))
