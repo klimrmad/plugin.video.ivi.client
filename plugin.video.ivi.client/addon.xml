@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="plugin.video.ivi.client" version="1.1.1" name="IVI" provider-name="vl.maksime">
+<addon id="plugin.video.ivi.client" version="1.1.2" name="ivi" provider-name="vl.maksime">
     <requires>
         <import addon="xbmc.python" version="2.19.0"/>
         <import addon="script.module.requests"/>
@@ -23,7 +23,7 @@
         <website>https://www.ivi.ru/</website>
         <email>vl.maksime@gmail.com</email>
         <source>https://github.com/vlmaksime/plugin.video.ivi.client</source>
-        <news>v1.1.0 (2018-10-21)[CR]- Исправлены выявленные ошибки[CR][CR]v1.1.0 (2018-08-27)[CR]- Добавлена поддержка Widevine CDM[CR]- Добавлена авторизация пользователя[CR]- Добавлена поддержка дополнения "Add to Lib"[CR][CR]v1.0.0 (2018-06-09)[CR]- Публичный релиз</news>
+        <news>v1.1.2 (2018-11-04)[CR]- Для контента с Widevine CDM ограничен доступ для KODI 18+ на всех платформах[CR][CR]v1.1.1 (2018-10-21)[CR]- Исправлены выявленные ошибки[CR][CR]v1.1.0 (2018-08-27)[CR]- Добавлена поддержка Widevine CDM[CR]- Добавлена авторизация пользователя[CR]- Добавлена поддержка дополнения "Add to Lib"[CR][CR]v1.0.0 (2018-06-09)[CR]- Публичный релиз</news>
         <assets>
             <icon>icon.png</icon>
         </assets>
