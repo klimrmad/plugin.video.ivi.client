@@ -648,6 +648,14 @@ def play_video(video_id):
         if path_MP4 is not None:
             listitem['path'] = path_MP4['url']
         elif path_DASH is not None:
+            # fix minimum kodi version
+            new_kodi_versions = {
+                'Windows': '18.0',
+                'Linux': '18.0',
+                'Darwin': '18.0'
+            }            
+            inputstreamhelper.config.WIDEVINE_MINIMUM_KODI_VERSION.update(new_kodi_versions)
+            
             ia_helper = inputstreamhelper.Helper('mpd', drm='widevine')
             if ia_helper.check_inputstream():
                 license_key = api.get_license_key(video_id, path_DASH['mdrm_asset_id'])
@@ -828,9 +836,10 @@ def get_user_fields(user_info=None):
 
 @plugin.route('/logout')
 def logout():
-    logout_result = api.user_logout()
-    if logout_result != 'ok':
-        return
+    try:
+        logout_result = api.user_logout()
+    except api.APIException as e:
+        pass
 
     user_fields = get_user_fields()
     
