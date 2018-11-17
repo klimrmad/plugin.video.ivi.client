@@ -1,5 +1,5 @@
 # Kodi Media Center language file
-# Addon Name: IVI
+# Addon Name: ivi
 # Addon id: plugin.video.vlmaksime.ivi.ru
 # Addon Provider: vl.maksime
 
@@ -94,6 +94,18 @@ msgctxt "#30048"
 msgid "Subscription"
 msgstr ""
 
+msgctxt "#30049"
+msgid "Enter this code on the page [B]ivi.ru/code[/B]"
+msgstr ""
+
+msgctxt "#30050"
+msgid "or in the application in the section [B]'Profile' - 'Entry by code'[/B]"
+msgstr ""
+
+msgctxt "#30051"
+msgid "Connection code: [B]{}[/B]"
+msgstr ""
+
 msgctxt "#30200"
 msgid "General"
 msgstr ""
@@ -143,7 +155,7 @@ msgid "Rating source"
 msgstr ""
 
 msgctxt "#30221"
-msgid "IVI"
+msgid "ivi"
 msgstr ""
 
 msgctxt "#30222"
@@ -159,7 +171,7 @@ msgid "My ivi"
 msgstr ""
 
 msgctxt "#30301"
-msgid "Login"
+msgid "Login by E-mail/Phone"
 msgstr ""
 
 msgctxt "#30302"
@@ -213,3 +225,8 @@ msgstr ""
 msgctxt "#30314"
 msgid "Female"
 msgstr ""
+
+msgctxt "#30315"
+msgid "Login by Code"
+msgstr ""
+

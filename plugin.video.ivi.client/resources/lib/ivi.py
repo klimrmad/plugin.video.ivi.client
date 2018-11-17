@@ -15,15 +15,16 @@ from .blowfish import Blowfish
 
 
 @python_2_unicode_compatible
-class IVI(object):
+class ivi(object):
 
     _api_url = 'https://api.ivi.ru/'
 
     @python_2_unicode_compatible
     class APIException(Exception):
 
-        def __init__(self, msg):
+        def __init__(self, msg, code=None):
             self.msg = msg
+            self.code = code
 
         def __str__(self):
             return self.msg
@@ -37,6 +38,10 @@ class IVI(object):
         self._key = ''
         self._key1 = ''
         self._key2 = ''
+        self._browser_name = 'Firefox'
+        self._browser_version = '60.0'
+        self._os_name= 'Windows'
+        self._os_version = '10'
 
         self._headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:60.0) Gecko/20100101 Firefox/60.0',
                          'Accept-Encoding': 'gzip, deflate, br',
@@ -45,7 +50,7 @@ class IVI(object):
                          }
 
     def __str__(self):
-        return 'IVI : app_version-{0}; subsite_id-{1}'.format(self._app_version, self._subsite_id)
+        return 'ivi : app_version-{0}; subsite_id-{1}'.format(self._app_version, self._subsite_id)
 
     def set_prop(self, prop, value):
         if prop == 'app_version':
@@ -64,32 +69,21 @@ class IVI(object):
             self._key1 = value.decode('hex')
         elif prop == 'key2':
             self._key2 = value.decode('hex')
+        elif prop == 'browser-name':
+            self._browser_name = value
+        elif prop == 'browser-version':
+            self._browser_version = value
+        elif prop == 'os-name':
+            self._os_name = value
+        elif prop == 'os-version':
+            self._os_version = value
+        elif prop == 'user-agent':
+            self._headers['User-Agent'] = value
 
     @staticmethod
     def get_uid():
         uid = str((1E6 * random.random() + random.random()))[0:15]
         return uid
-
-    def get_session(self, url=None):
-        url = url or 'https://www.ivi.ru/'
-
-        try:
-            r = requests.head(url, headers=self._headers)
-            r.raise_for_status()
-
-        except requests.ConnectionError:
-            raise self.APIException('Connection error')
-        except requests.HTTPError as e:
-            raise self.APIException(str(e))
-
-        if r.status_code == 302:
-            result = self.get_session(r.headers['location'])
-        else:
-            result = {'session': r.cookies['sessivi'],
-                      'user_ab_bucket': r.cookies['user_ab_bucket'],
-                      }
-
-        return result
 
     def get_server_certificate(self):
         url = 'https://w.ivi.ru/certificate/'
@@ -117,6 +111,25 @@ class IVI(object):
                         }
     
         return '{0}?{1}'.format(url, urlencode(license_keys, doseq=True))
+
+    def _get_device(self):
+        parts = []
+        if self._os_name:
+            parts.append(self._os_name)
+        if self._os_version:
+            parts.append('v.{}'.format(self._os_version))
+        if self._browser_name:
+            parts.append(self._browser_name)
+        if self._browser_version:
+            parts.append('v.{}'.format(self._browser_version))
+
+        device = ' '.join(parts)
+        
+        if self._session:
+            device = '{}_{}'.format(device, self._session[0:5])
+            
+        return device
+            
  
     def _get_sign(self, text):
         cipher = Blowfish(self._key)
@@ -176,9 +189,9 @@ class IVI(object):
         if isinstance(j, dict) \
           and j.get('error') is not None:
             if j['error'].get('user_message') is not None:
-                raise self.APIException(j['error']['user_message'])
+                raise self.APIException(j['error']['user_message'], j['error']['code'])
             else:
-                raise self.APIException(j['error']['message'])
+                raise self.APIException(j['error']['message'], j['error']['code'])
         return j
 
     def appversioninfo(self):
@@ -591,6 +604,32 @@ class IVI(object):
   
         u_params = {'phone': phone,
                     'session': self._session,
+                    }
+
+        r = self._http_request(url, params=u_params, rtype='POST')
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_auth_code(self):
+        url = 'mobileapi/user/auth_code/v5/'
+  
+        u_params = {'device': self._get_device(),
+                    'session': self._session,
+                    'user_ab_bucket': self._user_ab_bucket,
+                    }
+
+        r = self._http_request(url, params=u_params)
+        j = self._extract_json(r)
+
+        return j['result']
+
+    def user_auth_code_check(self, code):
+        url = 'mobileapi/user/auth_code/check/v5/'
+  
+        u_params = {'code': code,
+                    'session': self._session,
+                    'user_ab_bucket': self._user_ab_bucket,
                     }
 
         r = self._http_request(url, params=u_params, rtype='POST')

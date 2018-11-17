@@ -5,14 +5,15 @@ from __future__ import unicode_literals
 
 from future.utils import iteritems
 from simplemedia import py2_decode
+import platform
 import simplemedia
 import inputstreamhelper
 
 import xbmc
 import xbmcplugin
-
-from resources.lib.ivi import IVI
 import xbmcgui
+
+from resources.lib.ivi import ivi
 
 plugin = simplemedia.RoutedPlugin()
 _ = plugin.initialize_gettext()
@@ -811,6 +812,63 @@ def login():
     elif validate_result['action'] == 'register':
         dialog.ok(plugin.name, _('Login not registered'))
 
+@plugin.route('/auth_code')
+def auth_code():
+    dialog = xbmcgui.Dialog()
+    
+    try:
+        code_result = api.user_auth_code()
+    except api.APIException as e:
+        dialog.ok(plugin.name, e.msg)
+        return
+
+    code = code_result['code']
+
+    progress = xbmcgui.DialogProgress()
+    progress.create(_('Login by Code'),
+                    _('Connection code: [B]{}[/B]').format(code),
+                    _('Enter this code on the page [B]ivi.ru/code[/B]'),
+                    _('or in the application in the section [B]\'Profile\' - \'Entry by code\'[/B]'))
+    
+    wait_sec = 120
+    step_sec = 2
+    pass_sec = 0
+    check_sec = 20
+    
+    while pass_sec < wait_sec:
+        if (progress.iscanceled()):
+            return
+
+        xbmc.sleep( step_sec * 1000 )
+        pass_sec += step_sec
+
+        progress.update(100 * pass_sec / wait_sec )
+        
+        if (pass_sec % check_sec) == 0:
+            try:
+                check_result = api.user_auth_code_check(code)
+                break
+            except api.APIException as e:
+                if e.code != 140:
+                    progress.close()
+    
+                    dialog.ok(plugin.name, e.msg)
+                    return
+
+    progress.close()
+    
+    api.set_prop('session', check_result['session'])
+    merge_result = api.user_merge(plugin.get_setting('session'))
+    if merge_result == 'ok':
+        user_info = api.user_info()
+        
+        user_fields = get_user_fields(user_info)
+#        user_fields['user_login'] = code
+        user_fields['session'] = check_result['session']
+        plugin.set_settings(user_fields)
+
+    dialog.ok(plugin.name, _('You have successfully logged in'))
+        
 
 def _get_keyboard_text(line='', heading='', hidden=False):            
     kbd = xbmc.Keyboard(line, heading, hidden)
@@ -867,12 +925,28 @@ def _init_api():
     session = plugin.get_setting('session')
     user_ab_bucket = plugin.get_setting('user_ab_bucket')
     user_uid = plugin.get_setting('user_uid')
-    api = IVI(app_version)
+    api = ivi(app_version)
 
     if not user_uid:
-        user_uid = IVI.get_uid()
+        user_uid = ivi.get_uid()
         plugin.set_setting('user_uid', user_uid)
     api.set_prop('uid', user_uid)
+
+    if plugin.kodi_major_version() >= '17':
+        api.set_prop('user-agent', xbmc.getUserAgent())
+
+    os_name = platform.system()
+    os_version = ''
+    if os_name == 'Linux':
+        if xbmc.getCondVisibility('system.platform.android'):
+            os_name = 'Android'
+    else:
+        os_version = platform.release()
+        
+    api.set_prop('browser-name', 'Kodi')
+    api.set_prop('browser-version', plugin.kodi_version())
+    api.set_prop('os-name', os_name)
+    api.set_prop('os-version', os_version)
 
     try:
         if not session:
@@ -998,7 +1072,6 @@ def _make_rating(item, rating_source, field):
             'votes': 0,
             'defaultt': False,
             }
-
 
 if __name__ == '__main__':
     _init_api()
