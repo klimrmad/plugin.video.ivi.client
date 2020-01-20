@@ -6,10 +6,15 @@ from __future__ import unicode_literals
 import json
 import random
 
-from future.utils import python_2_unicode_compatible, iteritems
+from future.utils import PY3, python_2_unicode_compatible, iteritems
+
 import requests
 from base64 import b64encode
-from urllib.parse import urlencode
+
+if PY3:
+    from urllib.parse import urlencode
+else:
+    from future.backports.urllib.parse import urlencode
 
 from .blowfish import Blowfish
 

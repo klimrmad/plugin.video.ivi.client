@@ -148,7 +148,7 @@ def _list_category(data, category_hru=''):
 
     use_pages = (category_hru != '')
 
-    use_atl_names = plugin.params.get('atl')
+    use_atl_names = plugin.params.get('atl', '').lower() == 'true'
     if use_atl_names is None \
       and plugin.get_setting('use_atl_names'):
         use_atl_names = plugin.get_setting('use_atl_names')
@@ -300,7 +300,7 @@ def _list_favourites(data):
 
     use_pages = True
 
-    use_atl_names = plugin.params.get('atl')
+    use_atl_names = plugin.params.get('atl', '').lower() == 'true'
     if use_atl_names is None \
       and plugin.get_setting('use_atl_names'):
         use_atl_names = plugin.get_setting('use_atl_names')
@@ -340,7 +340,7 @@ def _list_watchhistory(data):
 
     use_pages = True
 
-    use_atl_names = plugin.params.get('atl')
+    use_atl_names = plugin.params.get('atl', '').lower() == 'true'
     if use_atl_names is None \
       and plugin.get_setting('use_atl_names'):
         use_atl_names = plugin.get_setting('use_atl_names')
@@ -424,7 +424,7 @@ def _list_seasons(data):
 @plugin.route('/compilation/<compilation_id>/', 'compilation_season_short')
 @plugin.route('/compilation/<compilation_id>/<season>')
 def compilation_season(compilation_id, season=None):
-    use_atl_names = plugin.params.get('atl', False)
+    use_atl_names = plugin.params.get('atl', '').lower() == 'true'
 
     try:
         season_info = api.videofromcompilation(compilation_id, season)
@@ -451,7 +451,8 @@ def compilation_season(compilation_id, season=None):
 
 
 def _list_episodes(data):
-    use_atl_names = plugin.params.get('atl', False)
+    use_atl_names = plugin.params.get('atl', '').lower() == 'true'
+    use_atl_names = use_atl_names or plugin.get_setting('use_atl_names')
     if use_atl_names:
         compilation_info = api.compilationinfo(data['compilation_id'])
     else:
@@ -471,7 +472,8 @@ def _get_listitem(item, _watch=False):
     orig_title = ''
     countries = _countries()
 
-    use_atl_names = plugin.params.get('atl', False)
+    use_atl_names = plugin.params.get('atl', '').lower() == 'true'
+    use_atl_names = use_atl_names or plugin.get_setting('use_atl_names')
     ext_params = {}
     if use_atl_names:
         ext_params['atl'] = use_atl_names
@@ -498,7 +500,11 @@ def _get_listitem(item, _watch=False):
             break
         
     if item['object_type'] == 'video':
-        url = plugin.url_for('play_video', video_id=item['id'])
+        video_params = {}
+        if use_atl_names:
+            video_params['strm'] = 1
+
+        url = plugin.url_for('play_video', video_id=item['id'], **video_params)
         is_folder = False
         is_playable = True
         if item.get('episode') is None:
@@ -530,13 +536,15 @@ def _get_listitem(item, _watch=False):
             if use_atl_names:
                 atl_name_parts = []
                 if item.get('compilation_orig_title', ''):
-                    atl_name_parts.append(item['compilation_orig_title'])
+                    compilation_title = item['compilation_orig_title']
                 else:
-                    atl_name_parts.append(item['compilation_title'])
+                    compilation_title = item['compilation_title']
+                atl_name_parts.append(compilation_title)
                     
                 atl_name_parts.append('.s%02de%02d' % (season, item['episode']))
 
-                if orig_title:
+                if orig_title \
+                  and orig_title != compilation_title:
                     atl_name_parts.append('-')
                     atl_name_parts.append(orig_title)
                 elif title:
@@ -639,9 +647,15 @@ def _get_listitem(item, _watch=False):
 def play_video(video_id):
     succeeded = True
 
+    is_strm = plugin.params.get('strm') == '1' \
+               and plugin.kodi_major_version() >= '18'
+
     try:
         video_info = api.videoinfo(video_id)
-        listitem = _get_listitem(video_info, True)
+        if is_strm:
+            listitem = {}
+        else:
+            listitem = _get_listitem(video_info, True)
 
         videolinks = api.videolinks(video_id)
         path_MP4 = _get_video_path(videolinks, 'MP4')
